@@ -5,10 +5,10 @@ namespace Psalm;
 use Composer\Autoload\ClassLoader;
 use Composer\Semver\Constraint\Constraint;
 use Composer\Semver\VersionParser;
-use DirectoryIterator;
 use DOMAttr;
 use DOMDocument;
 use DOMElement;
+use DirectoryIterator;
 use InvalidArgumentException;
 use JsonException;
 use LogicException;
@@ -1355,7 +1355,6 @@ class Config
                     $preload_classes = (string)$stub_path['preloadClasses'];
                 }
                 if ($preload_classes === 'true' || $preload_classes === '1') {
-                    if (is_dir($file_dir_path)) {}
                     $config->addPreloadedStub($file_dir_path);
                 } else {
                     $config->addStub($file_dir_path);
@@ -1428,7 +1427,7 @@ class Config
         return $config;
     }
 
-    private function addPreloadedStub(string $path)
+    private function addPreloadedStub(string $path): void
     {
         if (is_dir($path)) {
             foreach (new DirectoryIterator($path) as $file) {
@@ -1441,7 +1440,7 @@ class Config
         }
     }
 
-    private function addStub(string $path)
+    private function addStub(string $path): void
     {
         if (is_dir($path)) {
             foreach (new DirectoryIterator($path) as $file) {
