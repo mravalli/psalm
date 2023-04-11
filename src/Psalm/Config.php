@@ -5,6 +5,7 @@ namespace Psalm;
 use Composer\Autoload\ClassLoader;
 use Composer\Semver\Constraint\Constraint;
 use Composer\Semver\VersionParser;
+use DirectoryIterator;
 use DOMAttr;
 use DOMDocument;
 use DOMElement;
@@ -1331,34 +1332,33 @@ class Config
             }
         }
 
-        if (isset($config_xml->stubs) && isset($config_xml->stubs->file)) {
-            /** @var SimpleXMLElement $stub_file */
-            foreach ($config_xml->stubs->file as $stub_file) {
-                $stub_file_name = (string)$stub_file['name'];
-                if (!Path::isAbsolute($stub_file_name)) {
-                    $stub_file_name = $config->base_dir . DIRECTORY_SEPARATOR . $stub_file_name;
+        if (isset($config_xml->stubs) && (isset($config_xml->stubs->file) || isset($config_xml->stubs->directory))) {
+            /** @var SimpleXMLElement $stub_path */
+            foreach ($config_xml->stubs->file as $stub_path) {
+                $stub_path_name = (string)$stub_path['name'];
+                if (!Path::isAbsolute($stub_path_name)) {
+                    $stub_path_name = $config->base_dir . DIRECTORY_SEPARATOR . $stub_path_name;
                 }
-                $file_path = realpath($stub_file_name);
+                $file_dir_path = realpath($stub_path_name);
 
-                if (!$file_path) {
+                if (!$file_dir_path) {
                     throw new ConfigException(
-                        'Cannot resolve stubfile path '
+                        'Cannot resolve stubfile or dir path '
                             . rtrim($config->base_dir, DIRECTORY_SEPARATOR)
                             . DIRECTORY_SEPARATOR
-                            . $stub_file['name'],
+                            . $stub_path['name'],
                     );
                 }
 
-                if (isset($stub_file['preloadClasses'])) {
-                    $preload_classes = (string)$stub_file['preloadClasses'];
-
-                    if ($preload_classes === 'true' || $preload_classes === '1') {
-                        $config->addPreloadedStubFile($file_path);
-                    } else {
-                        $config->addStubFile($file_path);
-                    }
+                $preload_classes = '';
+                if (isset($stub_path['preloadClasses'])) {
+                    $preload_classes = (string)$stub_path['preloadClasses'];
+                }
+                if ($preload_classes === 'true' || $preload_classes === '1') {
+                    if (is_dir($file_dir_path)) {}
+                    $config->addPreloadedStub($file_dir_path);
                 } else {
-                    $config->addStubFile($file_path);
+                    $config->addStub($file_dir_path);
                 }
             }
         }
@@ -1426,6 +1426,32 @@ class Config
         }
 
         return $config;
+    }
+
+    private function addPreloadedStub(string $path)
+    {
+        if (is_dir($path)) {
+            foreach (new DirectoryIterator($path) as $file) {
+                if ($file->isFile() && $file->getExtension() === 'php') {
+                    $this->addPreloadedStubFile($file->getFilename());
+                }
+            }
+        } else {
+            $this->addPreloadedStubFile($path);
+        }
+    }
+
+    private function addStub(string $path)
+    {
+        if (is_dir($path)) {
+            foreach (new DirectoryIterator($path) as $file) {
+                if ($file->isFile() && $file->getExtension() === 'php') {
+                    $this->addStubFile($file->getFilename());
+                }
+            }
+        } else {
+            $this->addStubFile($path);
+        }
     }
 
     public static function getInstance(): Config
